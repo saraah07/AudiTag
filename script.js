@@ -54,7 +54,8 @@ function findBestMatch(ocrText, expected) {
   const candidates = ocrText.split(/\s+/).filter(Boolean);
   // Also try the whole text as one candidate, and consecutive-pair joins
   candidates.push(ocrText);
-  for (let i = 0; i < candidates.length - 1; i++) {
+  const initialLen = candidates.length;
+  for (let i = 0; i < initialLen - 1; i++) {
     candidates.push(candidates[i] + candidates[i + 1]);
   }
   let best = { text: '', score: 0 };
