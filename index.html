@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AudiTag — Backup Media Verification Prototype</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>AudiTag</h1>
+      <p class="subtitle">AI-Assisted Visual Compliance Verification — Prototype</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>1. Upload verification photo</h2>
+        <input type="file" id="photoInput" accept="image/*" />
+        <div id="previewBox"><img id="preview" alt="Preview of uploaded media photo" /></div>
+      </section>
+
+      <section class="card">
+        <h2>2. Expected identifier (from rotation schedule)</h2>
+        <input type="text" id="expectedInput" placeholder="e.g., TAPE-MON-07" />
+      </section>
+
+      <section class="card">
+        <button id="verifyBtn" disabled>Run Verification</button>
+        <p id="status" class="status"></p>
+      </section>
+
+      <section class="card result" id="resultCard" hidden>
+        <h2>Verification Result</h2>
+        <table>
+          <tr><th>Status</th><td id="rStatus"></td></tr>
+          <tr><th>Detected text (OCR)</th><td id="rDetected"></td></tr>
+          <tr><th>Expected identifier</th><td id="rExpected"></td></tr>
+          <tr><th>OCR confidence</th><td id="rConfidence"></td></tr>
+          <tr><th>Reason</th><td id="rReason"></td></tr>
+          <tr><th>Recommended action</th><td id="rAction"></td></tr>
+        </table>
+      </section>
+
+      <section class="card note">
+        <h2>About this prototype</h2>
+        <p>This is a minimally functional prototype built for academic demonstration (Assignment 2, AI Use-Case Design and Feasibility). It uses <strong>Tesseract.js</strong> (client-side OCR) to read text from an uploaded photo and compares it against a manually entered expected identifier — simulating the AI Verification Engine described in the AudiTag invention disclosure. It runs entirely in your browser; no data is uploaded to any server.</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>Saraah Salim Patel | 24WU0201243 | AI Use-Case Design and Feasibility</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
