@@ -86,7 +86,7 @@ verifyBtn.addEventListener('click', async () => {
   resultCard.hidden = true;
 
   try {
-    const { data } = await Tesseract.recognize(preview.src, 'eng', {
+    const { data } = await Tesseract.recognize(uploadedFile, 'eng', {
       logger: (m) => {
         if (m.status === 'recognizing text') {
           statusEl.textContent = `Reading label... ${Math.round(m.progress * 100)}%`;
