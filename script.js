@@ -87,9 +87,6 @@ verifyBtn.addEventListener('click', async () => {
 
   try {
     const { data } = await Tesseract.recognize(preview.src, 'eng', {
-      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js',
-      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.4/tesseract-core.wasm.js',
-      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
       logger: (m) => {
         if (m.status === 'recognizing text') {
           statusEl.textContent = `Reading label... ${Math.round(m.progress * 100)}%`;
