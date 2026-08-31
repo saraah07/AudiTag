@@ -8,9 +8,9 @@ const resultCard = document.getElementById('resultCard');
 let uploadedFile = null;
 
 
-// ---------------------------------------------------------
-// ENABLE / DISABLE VERIFICATION BUTTON
-// ---------------------------------------------------------
+// =========================================================
+// READY CHECK
+// =========================================================
 
 function checkReady() {
   verifyBtn.disabled = !(
@@ -20,11 +20,12 @@ function checkReady() {
 }
 
 
-// ---------------------------------------------------------
-// IMAGE UPLOAD + PREVIEW
-// ---------------------------------------------------------
+// =========================================================
+// IMAGE UPLOAD
+// =========================================================
 
 photoInput.addEventListener('change', (e) => {
+
   uploadedFile = e.target.files[0];
 
   if (uploadedFile) {
@@ -42,13 +43,12 @@ photoInput.addEventListener('change', (e) => {
 expectedInput.addEventListener('input', checkReady);
 
 
-// ---------------------------------------------------------
+// =========================================================
 // IMAGE PREPROCESSING
-// Converts large uploaded images into a manageable JPEG.
-// This prevents OCR memory/string-length problems.
-// ---------------------------------------------------------
+// =========================================================
 
 function preprocessImage(file) {
+
   return new Promise((resolve, reject) => {
 
     const img = new Image();
@@ -60,7 +60,6 @@ function preprocessImage(file) {
       let width = img.naturalWidth;
       let height = img.naturalHeight;
 
-      // Resize large images while preserving aspect ratio
       if (width > MAX_SIZE || height > MAX_SIZE) {
 
         const scale = Math.min(
@@ -81,11 +80,9 @@ function preprocessImage(file) {
         alpha: false
       });
 
-      // White background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
 
-      // Draw image
       ctx.drawImage(
         img,
         0,
@@ -94,16 +91,20 @@ function preprocessImage(file) {
         height
       );
 
-      // Convert to compressed JPEG
       canvas.toBlob(
         (blob) => {
 
           if (!blob) {
-            reject(new Error('Could not prepare image for OCR.'));
+            reject(
+              new Error('Could not prepare image.')
+            );
             return;
           }
 
-          resolve(blob);
+          resolve({
+            blob: blob,
+            canvas: canvas
+          });
 
         },
         'image/jpeg',
@@ -112,7 +113,9 @@ function preprocessImage(file) {
     };
 
     img.onerror = () => {
-      reject(new Error('Could not load the uploaded image.'));
+      reject(
+        new Error('Could not load uploaded image.')
+      );
     };
 
     img.src = URL.createObjectURL(file);
@@ -120,24 +123,128 @@ function preprocessImage(file) {
 }
 
 
-// ---------------------------------------------------------
-// STRING NORMALIZATION
-// ---------------------------------------------------------
+// =========================================================
+// IMAGE QUALITY CHECK
+//
+// Uses variance of image gradients as a simple sharpness
+// indicator. Very blurry images are sent for human review.
+// =========================================================
+
+function calculateImageQuality(canvas) {
+
+  const ctx = canvas.getContext('2d');
+
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Downsample for faster calculation
+  const scale = Math.min(
+    1,
+    500 / Math.max(width, height)
+  );
+
+  const smallWidth = Math.max(
+    1,
+    Math.round(width * scale)
+  );
+
+  const smallHeight = Math.max(
+    1,
+    Math.round(height * scale)
+  );
+
+  const tempCanvas = document.createElement('canvas');
+
+  tempCanvas.width = smallWidth;
+  tempCanvas.height = smallHeight;
+
+  const tempCtx = tempCanvas.getContext('2d');
+
+  tempCtx.drawImage(
+    canvas,
+    0,
+    0,
+    smallWidth,
+    smallHeight
+  );
+
+  const imageData = tempCtx.getImageData(
+    0,
+    0,
+    smallWidth,
+    smallHeight
+  );
+
+  const pixels = imageData.data;
+
+  const gray = new Float32Array(
+    smallWidth * smallHeight
+  );
+
+  // Convert to grayscale
+  for (let i = 0; i < gray.length; i++) {
+
+    const p = i * 4;
+
+    gray[i] =
+      0.299 * pixels[p] +
+      0.587 * pixels[p + 1] +
+      0.114 * pixels[p + 2];
+  }
+
+  // Calculate average horizontal + vertical gradient
+  let sum = 0;
+  let count = 0;
+
+  for (let y = 1; y < smallHeight - 1; y++) {
+
+    for (let x = 1; x < smallWidth - 1; x++) {
+
+      const i = y * smallWidth + x;
+
+      const gx =
+        gray[i + 1] -
+        gray[i - 1];
+
+      const gy =
+        gray[i + smallWidth] -
+        gray[i - smallWidth];
+
+      const magnitude =
+        Math.sqrt(
+          gx * gx +
+          gy * gy
+        );
+
+      sum += magnitude;
+      count++;
+    }
+  }
+
+  const averageGradient =
+    count > 0
+      ? sum / count
+      : 0;
+
+  return averageGradient;
+}
+
+
+// =========================================================
+// NORMALIZE TEXT
+// =========================================================
 
 function normalize(str) {
+
   return str
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
 }
 
 
-// ---------------------------------------------------------
+// =========================================================
 // LEVENSHTEIN DISTANCE
-// Used to tolerate small OCR mistakes.
-// Example:
-// TAPE-MON-07
-// TAPE-MON-O7
-// ---------------------------------------------------------
+// =========================================================
 
 function levenshtein(a, b) {
 
@@ -164,8 +271,7 @@ function levenshtein(a, b) {
       dp[i][j] =
         a[i - 1] === b[j - 1]
           ? dp[i - 1][j - 1]
-          : 1 +
-            Math.min(
+          : 1 + Math.min(
               dp[i - 1][j - 1],
               dp[i - 1][j],
               dp[i][j - 1]
@@ -177,19 +283,14 @@ function levenshtein(a, b) {
 }
 
 
-// ---------------------------------------------------------
-// SIMILARITY SCORE
-// ---------------------------------------------------------
+// =========================================================
+// SIMILARITY
+// =========================================================
 
 function similarity(a, b) {
 
-  if (!a && !b) {
-    return 1;
-  }
-
-  if (!a || !b) {
-    return 0;
-  }
+  if (!a && !b) return 1;
+  if (!a || !b) return 0;
 
   const distance = levenshtein(a, b);
 
@@ -199,40 +300,62 @@ function similarity(a, b) {
 }
 
 
-// ---------------------------------------------------------
+// =========================================================
+// EXTRACT STRUCTURED IDENTIFIER
+//
+// Example:
+// TAPE-MON-07
+// TAPE-TUE-07
+//
+// This prevents MON from being treated as a near match
+// for TUE when the image is clearly readable.
+// =========================================================
+
+function parseIdentifier(str) {
+
+  const cleaned = str
+    .toUpperCase()
+    .replace(/\s+/g, '');
+
+  const match = cleaned.match(
+    /([A-Z]+)-([A-Z]+)-([0-9]+)/ 
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    prefix: match[1],
+    day: match[2],
+    number: match[3],
+    full: `${match[1]}-${match[2]}-${match[3]}`
+  };
+}
+
+
+// =========================================================
 // FIND BEST OCR MATCH
-// ---------------------------------------------------------
+// =========================================================
 
 function findBestMatch(ocrText, expected) {
 
-  const normalizedExpected = normalize(expected);
+  const normalizedExpected =
+    normalize(expected);
 
   let candidates = ocrText
     .split(/\s+/)
-    .map(word => word.trim())
+    .map(x => x.trim())
     .filter(Boolean);
 
-  // Whole OCR result
   candidates.push(ocrText);
 
-  // Remove punctuation from individual lines
   const lines = ocrText
     .split(/\n+/)
-    .map(line => line.trim())
+    .map(x => x.trim())
     .filter(Boolean);
 
   candidates = candidates.concat(lines);
-
-  // Combine adjacent OCR words
-  const originalCandidates = [...candidates];
-
-  for (let i = 0; i < originalCandidates.length - 1; i++) {
-
-    candidates.push(
-      originalCandidates[i] +
-      originalCandidates[i + 1]
-    );
-  }
 
   let best = {
     text: '',
@@ -241,16 +364,18 @@ function findBestMatch(ocrText, expected) {
 
   for (const candidate of candidates) {
 
-    const normalizedCandidate = normalize(candidate);
+    const normalizedCandidate =
+      normalize(candidate);
 
     if (!normalizedCandidate) {
       continue;
     }
 
-    const score = similarity(
-      normalizedCandidate,
-      normalizedExpected
-    );
+    const score =
+      similarity(
+        normalizedCandidate,
+        normalizedExpected
+      );
 
     if (score > best.score) {
 
@@ -265,9 +390,9 @@ function findBestMatch(ocrText, expected) {
 }
 
 
-// ---------------------------------------------------------
+// =========================================================
 // DISPLAY RESULT
-// ---------------------------------------------------------
+// =========================================================
 
 function setResult(
   status,
@@ -309,9 +434,9 @@ function setResult(
 }
 
 
-// ---------------------------------------------------------
-// MAIN VERIFICATION PROCESS
-// ---------------------------------------------------------
+// =========================================================
+// MAIN VERIFICATION
+// =========================================================
 
 verifyBtn.addEventListener('click', async () => {
 
@@ -323,76 +448,88 @@ verifyBtn.addEventListener('click', async () => {
   }
 
   verifyBtn.disabled = true;
-
   resultCard.hidden = true;
 
   statusEl.textContent =
-    'Preparing image for AI verification...';
+    'Preparing image for verification...';
 
   try {
 
     // -----------------------------------------------------
-    // STEP 1 — PREPROCESS IMAGE
+    // STEP 1 — IMAGE PREPROCESSING
     // -----------------------------------------------------
 
-    const processedImage =
+    const processed =
       await preprocessImage(uploadedFile);
 
+    const imageQuality =
+      calculateImageQuality(
+        processed.canvas
+      );
+
+    console.log(
+      'AudiTag image quality:',
+      imageQuality
+    );
+
     statusEl.textContent =
-      'Starting OCR engine...';
+      'Starting AI verification engine...';
 
 
     // -----------------------------------------------------
     // STEP 2 — OCR
     // -----------------------------------------------------
 
-    const { data } = await Tesseract.recognize(
-      processedImage,
-      'eng',
-      {
+    const { data } =
+      await Tesseract.recognize(
+        processed.blob,
+        'eng',
+        {
 
-        logger: (message) => {
+          logger: (message) => {
 
-          if (
-            message.status === 'recognizing text'
-          ) {
+            if (
+              message.status ===
+              'recognizing text'
+            ) {
 
-            statusEl.textContent =
-              `Reading backup media label... ${
-                Math.round(message.progress * 100)
-              }%`;
-          }
+              statusEl.textContent =
+                `Reading backup media label... ${
+                  Math.round(
+                    message.progress * 100
+                  )
+                }%`;
+            }
 
-          else if (
-            message.status === 'loading language traineddata'
-          ) {
+            else if (
+              message.status ===
+              'loading language traineddata'
+            ) {
 
-            statusEl.textContent =
-              'Loading English OCR model...';
-          }
+              statusEl.textContent =
+                'Loading OCR model...';
+            }
 
-          else if (
-            message.status === 'initializing api'
-          ) {
+            else if (
+              message.status ===
+              'initializing api'
+            ) {
 
-            statusEl.textContent =
-              'Initializing AI verification engine...';
-          }
-        },
+              statusEl.textContent =
+                'Initializing verification engine...';
+            }
+          },
 
-        // Backup identifiers contain letters,
-        // numbers and hyphens.
-        tessedit_char_whitelist:
-          'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
+          tessedit_char_whitelist:
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
 
-        // Assume a relatively simple text layout.
-        psm: 6
-      }
-    );
+          psm: 6
+        }
+      );
 
 
     // -----------------------------------------------------
-    // STEP 3 — GET OCR OUTPUT
+    // STEP 3 — OCR RESULTS
     // -----------------------------------------------------
 
     const ocrText =
@@ -401,16 +538,22 @@ verifyBtn.addEventListener('click', async () => {
     const ocrConfidence =
       Number(data.confidence || 0);
 
-
-    // -----------------------------------------------------
-    // STEP 4 — MATCH OCR RESULT WITH EXPECTED ID
-    // -----------------------------------------------------
-
     const match =
       findBestMatch(
         ocrText,
         expected
       );
+
+
+    // -----------------------------------------------------
+    // STEP 4 — STRUCTURED IDENTIFIER CHECK
+    // -----------------------------------------------------
+
+    const expectedParsed =
+      parseIdentifier(expected);
+
+    const detectedParsed =
+      parseIdentifier(match.text || ocrText);
 
 
     let status;
@@ -420,26 +563,110 @@ verifyBtn.addEventListener('click', async () => {
 
 
     // -----------------------------------------------------
-    // STEP 5 — CONFIDENCE-BASED DECISION
+    // CASE 1 — VERY POOR IMAGE / OCR
+    //
+    // IMPORTANT:
+    // This check happens BEFORE mismatch detection.
+    // Therefore a genuinely blurry image is UNCERTAIN.
     // -----------------------------------------------------
 
-    if (
+    const imageTooBlurry =
+      imageQuality < 4;
+
+    const ocrTooWeak =
       !ocrText ||
-      ocrConfidence < 40
+      ocrConfidence < 40;
+
+    if (
+      imageTooBlurry ||
+      ocrTooWeak
     ) {
 
       status = 'UNCERTAIN';
 
       confidenceLabel =
-        `Low — OCR confidence ${ocrConfidence.toFixed(0)}%`;
+        `Low — Image quality ${imageQuality.toFixed(1)}, ` +
+        `OCR confidence ${ocrConfidence.toFixed(0)}%`;
 
       reason =
-        'The image quality or OCR result was not reliable enough for automatic verification.';
+        'The verification image is not sufficiently clear for reliable automatic identification.';
 
       action =
-        'Route to IT Coordinator for review. Recapture photo if necessary.';
-
+        'Recapture the image and route to IT Coordinator if uncertainty remains.';
     }
+
+
+    // -----------------------------------------------------
+    // CASE 2 — CLEAR STRUCTURED IDENTIFIER MISMATCH
+    //
+    // Example:
+    // Expected: TAPE-TUE-07
+    // Detected: TAPE-MON-07
+    //
+    // This MUST be FAIL.
+    // -----------------------------------------------------
+
+    else if (
+      expectedParsed &&
+      detectedParsed &&
+      (
+        expectedParsed.prefix !==
+          detectedParsed.prefix ||
+
+        expectedParsed.day !==
+          detectedParsed.day ||
+
+        expectedParsed.number !==
+          detectedParsed.number
+      )
+    ) {
+
+      status = 'FAIL';
+
+      confidenceLabel =
+        `High — OCR ${ocrConfidence.toFixed(0)}%, ` +
+        `identifier match ${(match.score * 100).toFixed(0)}%`;
+
+      reason =
+        `Detected identifier ${detectedParsed.full} does not match the scheduled identifier ${expectedParsed.full}.`;
+
+      action =
+        'Do not auto-log as compliant. Route to IT Coordinator for review.';
+    }
+
+
+    // -----------------------------------------------------
+    // CASE 3 — CLEAR EXACT MATCH
+    // -----------------------------------------------------
+
+    else if (
+      normalize(match.text) ===
+      normalize(expected)
+    ) {
+
+      status = 'PASS';
+
+      confidenceLabel =
+        `High — OCR ${ocrConfidence.toFixed(0)}%, ` +
+        `exact identifier match`;
+
+      reason =
+        'Detected identifier exactly matches the expected scheduled identifier.';
+
+      action =
+        'Auto-log verification result.';
+    }
+
+
+    // -----------------------------------------------------
+    // CASE 4 — FUZZY OCR MATCH
+    //
+    // Example:
+    // Expected: TAPE-MON-07
+    // OCR:      TAPE-MON-O7
+    //
+    // Small OCR character mistakes can still pass.
+    // -----------------------------------------------------
 
     else if (
       match.score >= 0.80
@@ -452,12 +679,16 @@ verifyBtn.addEventListener('click', async () => {
         `identifier match ${(match.score * 100).toFixed(0)}%`;
 
       reason =
-        'The detected identifier closely matches the expected scheduled identifier.';
+        'Detected identifier closely matches the expected identifier, allowing for a minor OCR character-reading error.';
 
       action =
         'Auto-log verification result.';
-
     }
+
+
+    // -----------------------------------------------------
+    // CASE 5 — UNCERTAIN PARTIAL MATCH
+    // -----------------------------------------------------
 
     else if (
       match.score >= 0.50
@@ -470,12 +701,16 @@ verifyBtn.addEventListener('click', async () => {
         `identifier match ${(match.score * 100).toFixed(0)}%`;
 
       reason =
-        'The detected identifier is only a partial match and may represent an OCR reading error or a genuine mismatch.';
+        'The detected text is only a partial identifier match and cannot be reliably classified automatically.';
 
       action =
         'Route to IT Coordinator for human review.';
-
     }
+
+
+    // -----------------------------------------------------
+    // CASE 6 — CLEAR MISMATCH
+    // -----------------------------------------------------
 
     else {
 
@@ -494,7 +729,7 @@ verifyBtn.addEventListener('click', async () => {
 
 
     // -----------------------------------------------------
-    // STEP 6 — DISPLAY RESULT
+    // DISPLAY
     // -----------------------------------------------------
 
     setResult(
@@ -519,8 +754,7 @@ verifyBtn.addEventListener('click', async () => {
     );
 
     statusEl.textContent =
-      'OCR could not process this image. ' +
-      'Try a clearer photo with the label facing the camera.';
+      'OCR could not process this image. Try a clearer photo.';
 
     resultCard.hidden = true;
   }
@@ -528,7 +762,6 @@ verifyBtn.addEventListener('click', async () => {
   finally {
 
     verifyBtn.disabled = false;
-
   }
 
 });
