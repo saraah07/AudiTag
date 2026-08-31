@@ -1,15 +1,17 @@
 // ============================================================
 // AUDITAG — AI-ASSISTED BACKUP MEDIA VERIFICATION PROTOTYPE
-// Final browser-based OCR version
+// FINAL VERSION
 // ============================================================
 
 
 // ------------------------------------------------------------
-// ELEMENTS
+// 1. PAGE ELEMENTS
 // ------------------------------------------------------------
 
 const photoInput = document.getElementById("photoInput");
 const expectedInput = document.getElementById("expectedInput");
+const operatorInput = document.getElementById("operatorInput");
+
 const preview = document.getElementById("preview");
 const verifyBtn = document.getElementById("verifyBtn");
 const statusEl = document.getElementById("status");
@@ -19,19 +21,24 @@ let uploadedFile = null;
 
 
 // ------------------------------------------------------------
-// READY CHECK
+// 2. CHECK WHETHER VERIFICATION CAN START
+// ------------------------------------------------------------
+// All three fields are mandatory:
+// Photo + Expected Identifier + Operator Name
 // ------------------------------------------------------------
 
 function checkReady() {
+
     verifyBtn.disabled = !(
         uploadedFile &&
-        expectedInput.value.trim().length > 0
+        expectedInput.value.trim().length > 0 &&
+        operatorInput.value.trim().length > 0
     );
 }
 
 
 // ------------------------------------------------------------
-// PHOTO UPLOAD
+// 3. PHOTO UPLOAD AND PREVIEW
 // ------------------------------------------------------------
 
 photoInput.addEventListener("change", function (event) {
@@ -57,17 +64,25 @@ photoInput.addEventListener("change", function (event) {
 
 
 // ------------------------------------------------------------
-// EXPECTED IDENTIFIER INPUT
+// 4. INPUT LISTENERS
 // ------------------------------------------------------------
 
-expectedInput.addEventListener("input", checkReady);
+expectedInput.addEventListener(
+    "input",
+    checkReady
+);
+
+operatorInput.addEventListener(
+    "input",
+    checkReady
+);
 
 
 // ------------------------------------------------------------
-// IMAGE PREPROCESSING
+// 5. IMAGE PREPROCESSING
 // ------------------------------------------------------------
-// Converts the uploaded image into a manageable JPEG.
-// This reduces browser memory problems and improves OCR stability.
+// Large images are resized and converted to JPEG before OCR.
+// This helps avoid browser memory/string-length problems.
 // ------------------------------------------------------------
 
 function preprocessImage(file) {
@@ -84,32 +99,45 @@ function preprocessImage(file) {
             let height = img.naturalHeight;
 
 
-            // Resize very large images
-            if (width > MAX_SIZE || height > MAX_SIZE) {
+            // Resize large images while preserving
+            // their original aspect ratio.
+            if (
+                width > MAX_SIZE ||
+                height > MAX_SIZE
+            ) {
 
                 const scale = Math.min(
                     MAX_SIZE / width,
                     MAX_SIZE / height
                 );
 
-                width = Math.round(width * scale);
-                height = Math.round(height * scale);
+                width =
+                    Math.round(width * scale);
+
+                height =
+                    Math.round(height * scale);
             }
 
 
-            const canvas = document.createElement("canvas");
+            const canvas =
+                document.createElement("canvas");
 
             canvas.width = width;
             canvas.height = height;
 
 
-            const ctx = canvas.getContext("2d", {
-                alpha: false
-            });
+            const ctx =
+                canvas.getContext(
+                    "2d",
+                    {
+                        alpha: false
+                    }
+                );
 
 
             // White background
             ctx.fillStyle = "#ffffff";
+
             ctx.fillRect(
                 0,
                 0,
@@ -118,7 +146,7 @@ function preprocessImage(file) {
             );
 
 
-            // Draw image
+            // Draw uploaded image
             ctx.drawImage(
                 img,
                 0,
@@ -128,7 +156,7 @@ function preprocessImage(file) {
             );
 
 
-            // Convert to JPEG
+            // Convert to compressed JPEG
             canvas.toBlob(
                 function (blob) {
 
@@ -166,47 +194,62 @@ function preprocessImage(file) {
         };
 
 
-        img.src = URL.createObjectURL(file);
+        img.src =
+            URL.createObjectURL(file);
     });
 }
 
 
 // ------------------------------------------------------------
-// IMAGE QUALITY CHECK
+// 6. IMAGE QUALITY / BLUR CHECK
 // ------------------------------------------------------------
-// Estimates image sharpness using image gradients.
-// Low sharpness = likely blurry image.
+// Estimates sharpness using image gradients.
+// Very low sharpness is treated as unreliable.
 // ------------------------------------------------------------
 
 function calculateImageQuality(canvas) {
 
-    const originalWidth = canvas.width;
-    const originalHeight = canvas.height;
+    const originalWidth =
+        canvas.width;
+
+    const originalHeight =
+        canvas.height;
 
 
-    // Work on a smaller copy for speed
+    // Downsample for faster processing
     const scale = Math.min(
         1,
-        500 / Math.max(
+        500 /
+        Math.max(
             originalWidth,
             originalHeight
         )
     );
 
 
-    const width = Math.max(
-        1,
-        Math.round(originalWidth * scale)
-    );
+    const width =
+        Math.max(
+            1,
+            Math.round(
+                originalWidth * scale
+            )
+        );
 
-    const height = Math.max(
-        1,
-        Math.round(originalHeight * scale)
-    );
+
+    const height =
+        Math.max(
+            1,
+            Math.round(
+                originalHeight * scale
+            )
+        );
 
 
     const smallCanvas =
-        document.createElement("canvas");
+        document.createElement(
+            "canvas"
+        );
+
 
     smallCanvas.width = width;
     smallCanvas.height = height;
@@ -214,6 +257,7 @@ function calculateImageQuality(canvas) {
 
     const ctx =
         smallCanvas.getContext("2d");
+
 
     ctx.drawImage(
         canvas,
@@ -233,17 +277,22 @@ function calculateImageQuality(canvas) {
         );
 
 
-    const pixels = imageData.data;
+    const pixels =
+        imageData.data;
 
 
-    // Convert to grayscale
+    // Convert image to grayscale
     const gray =
         new Float32Array(
             width * height
         );
 
 
-    for (let i = 0; i < gray.length; i++) {
+    for (
+        let i = 0;
+        i < gray.length;
+        i++
+    ) {
 
         const p = i * 4;
 
@@ -259,9 +308,17 @@ function calculateImageQuality(canvas) {
     let count = 0;
 
 
-    for (let y = 1; y < height - 1; y++) {
+    for (
+        let y = 1;
+        y < height - 1;
+        y++
+    ) {
 
-        for (let x = 1; x < width - 1; x++) {
+        for (
+            let x = 1;
+            x < width - 1;
+            x++
+        ) {
 
             const i =
                 y * width + x;
@@ -279,12 +336,16 @@ function calculateImageQuality(canvas) {
 
             const gradient =
                 Math.sqrt(
-                    horizontal * horizontal +
-                    vertical * vertical
+                    horizontal *
+                    horizontal +
+                    vertical *
+                    vertical
                 );
 
 
-            totalGradient += gradient;
+            totalGradient +=
+                gradient;
+
             count++;
         }
     }
@@ -295,24 +356,35 @@ function calculateImageQuality(canvas) {
     }
 
 
-    return totalGradient / count;
+    return (
+        totalGradient /
+        count
+    );
 }
 
 
 // ------------------------------------------------------------
-// NORMALIZE TEXT
+// 7. TEXT NORMALIZATION
 // ------------------------------------------------------------
 
 function normalize(text) {
 
     return text
         .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
+        .replace(
+            /[^A-Z0-9]/g,
+            ""
+        );
 }
 
 
 // ------------------------------------------------------------
-// LEVENSHTEIN DISTANCE
+// 8. LEVENSHTEIN DISTANCE
+// ------------------------------------------------------------
+// Used to tolerate small OCR character errors.
+// Example:
+// TAPE-MON-07
+// TAPE-MON-O7
 // ------------------------------------------------------------
 
 function levenshtein(a, b) {
@@ -327,6 +399,7 @@ function levenshtein(a, b) {
                 length: m + 1
             },
             function () {
+
                 return new Array(
                     n + 1
                 ).fill(0);
@@ -334,19 +407,37 @@ function levenshtein(a, b) {
         );
 
 
-    for (let i = 0; i <= m; i++) {
+    for (
+        let i = 0;
+        i <= m;
+        i++
+    ) {
+
         matrix[i][0] = i;
     }
 
 
-    for (let j = 0; j <= n; j++) {
+    for (
+        let j = 0;
+        j <= n;
+        j++
+    ) {
+
         matrix[0][j] = j;
     }
 
 
-    for (let i = 1; i <= m; i++) {
+    for (
+        let i = 1;
+        i <= m;
+        i++
+    ) {
 
-        for (let j = 1; j <= n; j++) {
+        for (
+            let j = 1;
+            j <= n;
+            j++
+        ) {
 
             if (
                 a[i - 1] ===
@@ -375,7 +466,7 @@ function levenshtein(a, b) {
 
 
 // ------------------------------------------------------------
-// SIMILARITY SCORE
+// 9. SIMILARITY SCORE
 // ------------------------------------------------------------
 
 function similarity(a, b) {
@@ -383,6 +474,7 @@ function similarity(a, b) {
     if (!a && !b) {
         return 1;
     }
+
 
     if (!a || !b) {
         return 0;
@@ -393,18 +485,20 @@ function similarity(a, b) {
         levenshtein(a, b);
 
 
-    return 1 -
+    return (
+        1 -
         distance /
         Math.max(
             a.length,
             b.length,
             1
-        );
+        )
+    );
 }
 
 
 // ------------------------------------------------------------
-// PARSE BACKUP MEDIA IDENTIFIER
+// 10. PARSE IDENTIFIER
 // ------------------------------------------------------------
 // Expected format:
 // TAPE-MON-07
@@ -417,7 +511,10 @@ function parseIdentifier(text) {
     const cleaned =
         text
             .toUpperCase()
-            .replace(/\s+/g, "");
+            .replace(
+                /\s+/g,
+                ""
+            );
 
 
     const match =
@@ -450,7 +547,7 @@ function parseIdentifier(text) {
 
 
 // ------------------------------------------------------------
-// FIND BEST OCR MATCH
+// 11. FIND BEST OCR MATCH
 // ------------------------------------------------------------
 
 function findBestMatch(
@@ -479,11 +576,13 @@ function findBestMatch(
         candidates.concat(words);
 
 
-    // Whole OCR text
-    candidates.push(ocrText);
+    // Entire OCR output
+    candidates.push(
+        ocrText
+    );
 
 
-    // OCR lines
+    // Individual OCR lines
     const lines =
         ocrText
             .split(/\n+/)
@@ -497,7 +596,7 @@ function findBestMatch(
         candidates.concat(lines);
 
 
-    // Combined adjacent words
+    // Combine adjacent OCR words
     for (
         let i = 0;
         i < words.length - 1;
@@ -537,7 +636,10 @@ function findBestMatch(
             );
 
 
-        if (score > best.score) {
+        if (
+            score >
+            best.score
+        ) {
 
             best = {
 
@@ -554,13 +656,15 @@ function findBestMatch(
 
 
 // ------------------------------------------------------------
-// DISPLAY RESULT
+// 12. DISPLAY VERIFICATION RESULT
 // ------------------------------------------------------------
 
 function setResult(
     status,
     detected,
     expected,
+    operator,
+    timestamp,
     confidence,
     reason,
     action
@@ -579,12 +683,16 @@ function setResult(
         status;
 
 
-    if (status === "PASS") {
+    if (
+        status === "PASS"
+    ) {
 
         rStatus.className =
             "status-pass";
 
-    } else if (status === "FAIL") {
+    } else if (
+        status === "FAIL"
+    ) {
 
         rStatus.className =
             "status-fail";
@@ -610,6 +718,18 @@ function setResult(
 
 
     document.getElementById(
+        "rOperator"
+    ).textContent =
+        operator;
+
+
+    document.getElementById(
+        "rTimestamp"
+    ).textContent =
+        timestamp;
+
+
+    document.getElementById(
         "rConfidence"
     ).textContent =
         confidence;
@@ -629,18 +749,39 @@ function setResult(
 
 
 // ============================================================
-// MAIN AUDITAG VERIFICATION
+// 13. MAIN AUDITAG VERIFICATION PROCESS
 // ============================================================
 
 verifyBtn.addEventListener(
     "click",
     async function () {
 
+
+        // ----------------------------------------------------
+        // GET INPUTS
+        // ----------------------------------------------------
+
         const expected =
             expectedInput.value.trim();
 
 
-        if (!uploadedFile || !expected) {
+        const operator =
+            operatorInput.value.trim();
+
+
+        // ----------------------------------------------------
+        // SAFETY CHECK
+        // ----------------------------------------------------
+
+        if (
+            !uploadedFile ||
+            !expected ||
+            !operator
+        ) {
+
+            statusEl.textContent =
+                "Please provide the photo, expected identifier, and operator name.";
+
             return;
         }
 
@@ -657,9 +798,9 @@ verifyBtn.addEventListener(
         try {
 
 
-            // =================================================
-            // STEP 1 — IMAGE PREPROCESSING
-            // =================================================
+            // ------------------------------------------------
+            // STEP 1 — PREPROCESS IMAGE
+            // ------------------------------------------------
 
             const processed =
                 await preprocessImage(
@@ -667,9 +808,9 @@ verifyBtn.addEventListener(
                 );
 
 
-            // =================================================
+            // ------------------------------------------------
             // STEP 2 — IMAGE QUALITY
-            // =================================================
+            // ------------------------------------------------
 
             const imageQuality =
                 calculateImageQuality(
@@ -687,9 +828,9 @@ verifyBtn.addEventListener(
                 "Starting AI verification engine...";
 
 
-            // =================================================
+            // ------------------------------------------------
             // STEP 3 — OCR
-            // =================================================
+            // ------------------------------------------------
 
             const result =
                 await Tesseract.recognize(
@@ -736,36 +877,43 @@ verifyBtn.addEventListener(
                             },
 
 
+                        // Backup identifiers contain
+                        // letters, numbers and hyphens.
                         tessedit_char_whitelist:
                             "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-",
 
 
+                        // Simple block of text.
                         psm: 6
                     }
                 );
 
 
-            // =================================================
-            // STEP 4 — OCR OUTPUT
-            // =================================================
+            // ------------------------------------------------
+            // STEP 4 — READ OCR DATA
+            // ------------------------------------------------
 
             const data =
                 result.data;
 
 
             const ocrText =
-                (data.text || "").trim();
+                (
+                    data.text ||
+                    ""
+                ).trim();
 
 
             const ocrConfidence =
                 Number(
-                    data.confidence || 0
+                    data.confidence ||
+                    0
                 );
 
 
-            // =================================================
+            // ------------------------------------------------
             // STEP 5 — FIND BEST MATCH
-            // =================================================
+            // ------------------------------------------------
 
             const match =
                 findBestMatch(
@@ -774,9 +922,9 @@ verifyBtn.addEventListener(
                 );
 
 
-            // =================================================
-            // STEP 6 — STRUCTURED IDENTIFIER CHECK
-            // =================================================
+            // ------------------------------------------------
+            // STEP 6 — PARSE IDENTIFIERS
+            // ------------------------------------------------
 
             const expectedParsed =
                 parseIdentifier(
@@ -803,11 +951,10 @@ verifyBtn.addEventListener(
             //
             // This is checked FIRST.
             //
-            // Therefore:
+            // A poor-quality image should NOT automatically
+            // be declared a mismatch.
             //
-            // blurry image → UNCERTAIN
-            //
-            // We do NOT declare FAIL based on unreliable OCR.
+            // Result = UNCERTAIN
             // =================================================
 
             const imageTooBlurry =
@@ -851,12 +998,10 @@ verifyBtn.addEventListener(
             //
             // Example:
             //
-            // Detected: TAPE-MON-07
-            // Expected: TAPE-TUE-07
+            // Detected = TAPE-MON-07
+            // Expected = TAPE-TUE-07
             //
-            // Result:
-            //
-            // FAIL
+            // Result = FAIL
             // =================================================
 
             else if (
@@ -935,10 +1080,10 @@ verifyBtn.addEventListener(
             //
             // Example:
             //
-            // Expected: TAPE-MON-07
-            // OCR:      TAPE-MON-O7
+            // Expected = TAPE-MON-07
+            // OCR      = TAPE-MON-O7
             //
-            // Small character errors can still PASS.
+            // A small OCR error can still PASS.
             // =================================================
 
             else if (
@@ -969,7 +1114,7 @@ verifyBtn.addEventListener(
 
 
             // =================================================
-            // CASE 5 — PARTIAL / AMBIGUOUS RESULT
+            // CASE 5 — AMBIGUOUS PARTIAL MATCH
             // =================================================
 
             else if (
@@ -1024,14 +1169,30 @@ verifyBtn.addEventListener(
             }
 
 
-            // =================================================
-            // STEP 7 — DISPLAY RESULT
-            // =================================================
+            // ------------------------------------------------
+            // STEP 7 — CREATE TIMESTAMP
+            // ------------------------------------------------
+
+            const verificationTime =
+                new Date().toLocaleString(
+                    "en-IN",
+                    {
+                        dateStyle: "medium",
+                        timeStyle: "medium"
+                    }
+                );
+
+
+            // ------------------------------------------------
+            // STEP 8 — DISPLAY RESULT
+            // ------------------------------------------------
 
             setResult(
                 status,
                 match.text || ocrText,
                 expected,
+                operator,
+                verificationTime,
                 confidenceLabel,
                 reason,
                 action
@@ -1043,9 +1204,9 @@ verifyBtn.addEventListener(
         }
 
 
-        // =====================================================
+        // ----------------------------------------------------
         // ERROR HANDLING
-        // =====================================================
+        // ----------------------------------------------------
 
         catch (error) {
 
@@ -1064,9 +1225,9 @@ verifyBtn.addEventListener(
         }
 
 
-        // =====================================================
+        // ----------------------------------------------------
         // RE-ENABLE BUTTON
-        // =====================================================
+        // ----------------------------------------------------
 
         finally {
 
