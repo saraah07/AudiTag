@@ -2,12 +2,13 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
+
+    <meta charset="UTF-8">
 
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
-    />
+    >
 
     <title>
         AudiTag — Backup Media Verification Prototype
@@ -16,11 +17,13 @@
     <link
         rel="stylesheet"
         href="style.css"
-    />
+    >
 
+    <!-- Tesseract.js OCR Engine -->
     <script
         src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"
     ></script>
+
 </head>
 
 
@@ -35,7 +38,9 @@
 
         <header>
 
-            <h1>AudiTag</h1>
+            <h1>
+                AudiTag
+            </h1>
 
             <p class="subtitle">
                 AI-Assisted Visual Compliance Verification — Prototype
@@ -49,7 +54,7 @@
 
 
             <!-- ================================================= -->
-            <!-- 1. UPLOAD PHOTO -->
+            <!-- STEP 1 — UPLOAD VERIFICATION PHOTO -->
             <!-- ================================================= -->
 
             <section class="card">
@@ -62,14 +67,14 @@
                     type="file"
                     id="photoInput"
                     accept="image/*"
-                />
+                >
 
                 <div id="previewBox">
 
                     <img
                         id="preview"
                         alt="Preview of uploaded backup media photo"
-                    />
+                    >
 
                 </div>
 
@@ -78,7 +83,7 @@
 
 
             <!-- ================================================= -->
-            <!-- 2. EXPECTED IDENTIFIER -->
+            <!-- STEP 2 — EXPECTED IDENTIFIER -->
             <!-- ================================================= -->
 
             <section class="card">
@@ -91,14 +96,14 @@
                     type="text"
                     id="expectedInput"
                     placeholder="e.g., TAPE-MON-07"
-                />
+                >
 
             </section>
 
 
 
             <!-- ================================================= -->
-            <!-- 3. OPERATOR NAME -->
+            <!-- STEP 3 — OPERATOR NAME -->
             <!-- ================================================= -->
 
             <section class="card">
@@ -112,7 +117,7 @@
                     id="operatorInput"
                     placeholder="Enter name of Night Auditor"
                     autocomplete="name"
-                />
+                >
 
                 <p
                     style="
@@ -121,8 +126,9 @@
                         margin-bottom: 0;
                     "
                 >
-                    Required for audit traceability. The person performing
-                    the physical tape rotation must enter their name.
+                    Required for audit traceability. The person
+                    performing the physical tape rotation must
+                    enter their name.
                 </p>
 
             </section>
@@ -130,7 +136,7 @@
 
 
             <!-- ================================================= -->
-            <!-- VERIFICATION BUTTON -->
+            <!-- VERIFICATION -->
             <!-- ================================================= -->
 
             <section class="card">
@@ -169,50 +175,90 @@
                 <table>
 
                     <tr>
-                        <th>Status</th>
+
+                        <th>
+                            Status
+                        </th>
+
                         <td id="rStatus"></td>
+
                     </tr>
 
 
                     <tr>
-                        <th>Detected text (OCR)</th>
+
+                        <th>
+                            Detected text (OCR)
+                        </th>
+
                         <td id="rDetected"></td>
+
                     </tr>
 
 
                     <tr>
-                        <th>Expected identifier</th>
+
+                        <th>
+                            Expected identifier
+                        </th>
+
                         <td id="rExpected"></td>
+
                     </tr>
 
 
                     <tr>
-                        <th>Operator</th>
+
+                        <th>
+                            Operator
+                        </th>
+
                         <td id="rOperator"></td>
+
                     </tr>
 
 
                     <tr>
-                        <th>Verification time</th>
+
+                        <th>
+                            Verification time
+                        </th>
+
                         <td id="rTimestamp"></td>
+
                     </tr>
 
 
                     <tr>
-                        <th>OCR confidence</th>
+
+                        <th>
+                            OCR confidence
+                        </th>
+
                         <td id="rConfidence"></td>
+
                     </tr>
 
 
                     <tr>
-                        <th>Reason</th>
+
+                        <th>
+                            Reason
+                        </th>
+
                         <td id="rReason"></td>
+
                     </tr>
 
 
                     <tr>
-                        <th>Recommended action</th>
+
+                        <th>
+                            Recommended action
+                        </th>
+
                         <td id="rAction"></td>
+
                     </tr>
 
                 </table>
@@ -222,31 +268,93 @@
 
 
             <!-- ================================================= -->
-            <!-- ABOUT -->
+            <!-- ABOUT THE PROTOTYPE -->
             <!-- ================================================= -->
 
             <section class="card note">
 
                 <h2>
-                    About this prototype
+                    About the AudiTag Prototype
                 </h2>
 
-                <p>
-                    This is a minimally functional prototype built for
-                    academic demonstration. It uses Tesseract.js
-                    (client-side OCR) to read text from an uploaded photo
-                    and compares it against the expected identifier.
-                    The operator name is mandatory so that each
-                    verification is associated with the person performing
-                    the physical media rotation.
-                </p>
 
                 <p>
-                    The prototype simulates the AI Verification Engine
-                    described in the AudiTag invention disclosure:
-                    image verification, identifier extraction,
-                    policy comparison, confidence-based routing and
-                    human review for uncertain cases.
+                    <strong>AudiTag</strong> is a feasibility
+                    prototype designed to address a specific gap
+                    in backup operations: a manual checklist can
+                    show that a Night Auditor reported completing
+                    a tape rotation, but it cannot independently
+                    prove that the correct backup media was actually
+                    inserted.
+                </p>
+
+
+                <p>
+                    The prototype adds a simple verification step
+                    immediately after the physical tape rotation.
+                    The Night Auditor uploads a photo of the inserted
+                    backup media, enters the identifier expected from
+                    the rotation schedule, and records their name.
+                    AudiTag then reads the identifier from the image
+                    and compares it with the expected identifier.
+                </p>
+
+
+                <p>
+                    Based on the verification, the prototype produces
+                    one of three outcomes:
+                    <strong>PASS</strong> when the expected media is
+                    verified, <strong>FAIL</strong> when a clearly
+                    different media identifier is detected, or
+                    <strong>UNCERTAIN</strong> when the image or
+                    identification is not reliable enough for an
+                    automatic decision.
+                </p>
+
+
+                <p>
+                    For the Night Auditor, this provides immediate
+                    confirmation that the media rotation appears
+                    correct instead of relying only on a manual
+                    checklist. A wrong tape can therefore be identified
+                    during the same shift, before the backup process
+                    proceeds.
+                </p>
+
+
+                <p>
+                    For the IT Coordinator and hotel management,
+                    AudiTag provides clearer and more traceable
+                    evidence of the verification. The operator's
+                    name and verification time are recorded with the
+                    result, while failed or uncertain cases can be
+                    referred to the IT Coordinator for human review.
+                    This supports more proactive error detection,
+                    stronger compliance records, and clearer
+                    accountability.
+                </p>
+
+
+                <p>
+                    The prototype demonstrates the feasibility of
+                    converting a manual declaration into an
+                    evidence-based verification process while keeping
+                    the physical tape rotation and final responsibility
+                    with the human operator.
+                </p>
+
+
+                <p class="prototype-disclaimer">
+
+                    <strong>Prototype scope:</strong>
+                    This website demonstrates the core feasibility
+                    of the AudiTag solution using image-based text
+                    identification. It is an academic prototype and
+                    not a production deployment. A full implementation
+                    would additionally connect the verification process
+                    to the rotation-policy database, evidence repository,
+                    compliance dashboard, and formal user authentication.
+
                 </p>
 
             </section>
@@ -275,9 +383,9 @@
 
 
 
-    <!-- ===================================================== -->
+    <!-- ================================================= -->
     <!-- JAVASCRIPT -->
-    <!-- ===================================================== -->
+    <!-- ================================================= -->
 
     <script src="script.js?v=4"></script>
 
